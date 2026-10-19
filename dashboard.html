@@ -1365,7 +1365,8 @@ loadRegisteredDevices();
                 setState(p.from, "incoming connection...", "#fbbf24");
             } else if (p.type === "answer") {
                 const peer = peers[p.from];
-                if (!peer) return;
+                // Ignore duplicate/late answers (e.g. the same device open in two tabs)
+                if (!peer || peer.pc.signalingState !== "have-local-offer") return;
                 await peer.pc.setRemoteDescription(p.sdp);
                 await flushPending(peer);
             } else if (p.type === "ice") {
