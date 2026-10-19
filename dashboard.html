@@ -712,6 +712,53 @@ const ONLINE_WINDOW_MS = 75000; // 30s check-in interval + margin
 const THIS_DEVICE_KEY = "remotelink_this_device_id";
 let registeredDevices = [];
 let sharedFiles = [];
+const ALLOW_KEY = "remotelink_allow_remote";
+
+// Shared files are copied into IndexedDB so they survive page reloads
+function openFilesDb() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open("remotelink-files", 1);
+        req.onupgradeneeded = () => req.result.createObjectStore("files", { autoIncrement: true });
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function loadSharedFiles() {
+    const db = await openFilesDb();
+    sharedFiles = await new Promise((resolve, reject) => {
+        const req = db.transaction("files").objectStore("files").getAll();
+        req.onsuccess = () => resolve(req.result.map((r) => new File([r.blob], r.name, { type: r.type })));
+        req.onerror = () => reject(req.error);
+    });
+    db.close();
+}
+
+async function saveSharedFiles(files) {
+    const db = await openFilesDb();
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction("files", "readwrite");
+        const store = tx.objectStore("files");
+        files.forEach((f) => store.add({ name: f.name, type: f.type, blob: f }));
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error("storage full"));
+    });
+    db.close();
+    await loadSharedFiles();
+}
+
+async function clearSharedFiles() {
+    const db = await openFilesDb();
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction("files", "readwrite");
+        tx.objectStore("files").clear();
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+    sharedFiles = [];
+}
 
 function getThisDeviceId() {
     return localStorage.getItem(THIS_DEVICE_KEY);
@@ -1018,19 +1065,62 @@ async function loadRegisteredDevices(silent = false) {
         }
     });
 
-    const shareLabel = document.createElement("label");
+    const shareLabel = document.createElement("div");
     shareLabel.style.cssText = "display:block; margin:12px 0; color:#cbd5e1; font-size:14px;";
-    shareLabel.textContent = "Share files from this device (only your signed-in devices can see them): ";
+
+    const allowLabel = document.createElement("label");
+    allowLabel.style.cssText = "display:block; margin-bottom:10px;";
+    const allowBox = document.createElement("input");
+    allowBox.type = "checkbox";
+    allowBox.checked = localStorage.getItem(ALLOW_KEY) === "1";
+    allowBox.addEventListener("change", () => {
+        localStorage.setItem(ALLOW_KEY, allowBox.checked ? "1" : "0");
+        status.textContent = allowBox.checked
+            ? "Remote access ON: your other signed-in devices can browse the files saved below."
+            : "Remote access OFF: other devices cannot connect to this one.";
+    });
+    allowLabel.append(allowBox, " Allow my other devices to access this device remotely");
+
+    const shareTitle = document.createElement("div");
+    shareTitle.textContent = "Add files to share (saved on this device until you remove them):";
+
     const shareInput = document.createElement("input");
     shareInput.type = "file";
     shareInput.multiple = true;
     shareInput.style.cssText = "display:block; margin-top:8px; color:white;";
-    shareInput.addEventListener("change", () => {
-        sharedFiles = Array.from(shareInput.files);
-        status.textContent = sharedFiles.length + " file(s) shared. Keep this page open.";
+    shareInput.addEventListener("change", async () => {
+        const picked = Array.from(shareInput.files);
+        status.textContent = "Saving " + picked.length + " file(s)...";
+        try {
+            await saveSharedFiles(picked);
+            status.textContent = sharedFiles.length + " file(s) saved for remote access.";
+        } catch (e) {
+            sharedFiles = sharedFiles.concat(picked);
+            status.textContent = "Could not save permanently (" + e.message + "). Shared only until you close this page.";
+        }
+        shareInput.value = "";
         if (window.announceShared) window.announceShared();
     });
-    shareLabel.appendChild(shareInput);
+
+    const clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.className = "secondary";
+    clearBtn.textContent = "Remove all shared files";
+    clearBtn.addEventListener("click", async () => {
+        await clearSharedFiles();
+        status.textContent = "All shared files removed from this device.";
+        if (window.announceShared) window.announceShared();
+    });
+
+    shareLabel.append(allowLabel, shareTitle, shareInput, clearBtn);
+
+    // Restore files saved earlier so they are available without touching this device
+    loadSharedFiles().then(() => {
+        if (sharedFiles.length) {
+            status.textContent = sharedFiles.length + " saved file(s) ready for remote access.";
+        }
+    }).catch(() => {});
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
 
     const signalLine = document.createElement("p");
     signalLine.style.cssText = "font-size:13px; color:#94a3b8;";
@@ -1430,6 +1520,10 @@ loadRegisteredDevices();
         if (!myId || p.to !== myId || !p.from) return;
         try {
             if (p.type === "offer") {
+                if (localStorage.getItem(ALLOW_KEY) !== "1") {
+                    sendSignal({ type: "denied", from: myId, to: p.from });
+                    return;
+                }
                 await rtcReady;
                 const peer = createPeer(p.from);
                 peer.pc.ondatachannel = (e) => wireChannel(p.from, e.channel);
@@ -1439,6 +1533,11 @@ loadRegisteredDevices();
                 await peer.pc.setLocalDescription(answer);
                 sendSignal({ type: "answer", from: myId, to: p.from, sdp: peer.pc.localDescription.toJSON() });
                 setState(p.from, "incoming connection...", "#fbbf24");
+            } else if (p.type === "denied") {
+                setState(p.from,
+                    "access not granted - on that device, tick \"Allow my other devices to access this device remotely\"",
+                    "#f87171");
+                closePeer(p.from);
             } else if (p.type === "answer") {
                 const peer = peers[p.from];
                 // Ignore duplicate/late answers (e.g. the same device open in two tabs)
