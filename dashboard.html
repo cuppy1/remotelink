@@ -1086,7 +1086,27 @@ loadRegisteredDevices();
     setInterval(() => loadRegisteredDevices(true), 15000);
 
     // ---- WebRTC ----
-    const RTC_CONFIG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+    // Free TURN relay (Metered.ca). Fill these in after creating a free account; leave
+    // empty to use direct connections only (STUN).
+    const METERED_APP = "";      // e.g. "remotelink" (from remotelink.metered.live)
+    const METERED_API_KEY = "";  // from the Metered dashboard > TURN Server > API key
+
+    let RTC_CONFIG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+    const rtcReady = (async () => {
+        if (!METERED_APP || !METERED_API_KEY) return;
+        try {
+            const r = await fetch(
+                "https://" + METERED_APP + ".metered.live/api/v1/turn/credentials?apiKey=" +
+                encodeURIComponent(METERED_API_KEY)
+            );
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            const servers = await r.json();
+            RTC_CONFIG = { iceServers: servers };
+            console.log("TURN relay loaded:", servers.length, "servers");
+        } catch (e) {
+            console.error("Could not load TURN relay, using STUN only:", e.message);
+        }
+    })();
     const peers = {}; // remote device id -> { pc, channel, pending, timer }
     let signalChannel = null;
     let devicesChannel = null;
@@ -1340,6 +1360,7 @@ loadRegisteredDevices();
         if (!signalChannel) { setState(remoteId, "signaling not connected - reload the page", "#f87171"); return; }
         try {
             setState(remoteId, "connecting...", "#fbbf24");
+            await rtcReady;
             const peer = createPeer(remoteId);
             wireChannel(remoteId, peer.pc.createDataChannel("remotelink"));
             const offer = await peer.pc.createOffer();
@@ -1355,6 +1376,7 @@ loadRegisteredDevices();
         if (!myId || p.to !== myId || !p.from) return;
         try {
             if (p.type === "offer") {
+                await rtcReady;
                 const peer = createPeer(p.from);
                 peer.pc.ondatachannel = (e) => wireChannel(p.from, e.channel);
                 await peer.pc.setRemoteDescription(p.sdp);
