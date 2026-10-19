@@ -867,7 +867,7 @@ async function loadRegisteredDevices(silent = false) {
             infoButton.type = "button";
             infoButton.textContent = "Device Information";
             infoButton.addEventListener("click", () => {
-                showDeviceInfo(device.device_name);
+                window.requestDeviceInfo(device.id);
             });
 
             const fileButton = document.createElement("button");
@@ -1189,6 +1189,10 @@ loadRegisteredDevices();
                 setState(remoteId,
                     "connected (encrypted peer-to-peer), round trip " +
                     (Date.now() - msg.ts) + " ms", "#4ade80");
+            } else if (msg.t === "info-req") {
+                sendInfo(channel);
+            } else if (msg.t === "info") {
+                renderInfo(remoteId, msg.info);
             } else if (msg.t === "list-req") {
                 sendList(channel);
             } else if (msg.t === "get") {
@@ -1323,6 +1327,56 @@ loadRegisteredDevices();
             box.appendChild(img);
         }
     }
+
+    // ---- Device information (only what a web page is allowed to read) ----
+    async function sendInfo(channel) {
+        const info = {
+            device: (localStorage.getItem(THIS_DEVICE_KEY) && (registeredDevices.find((d) => String(d.id) === getThisDeviceId()) || {}).device_name) || "Unknown",
+            browser: navigator.userAgent,
+            screen: screen.width + "x" + screen.height,
+            language: navigator.language,
+            online: navigator.onLine,
+            network: navigator.connection ? (navigator.connection.effectiveType || "unknown") : "not available",
+            sharedFiles: sharedFiles.length,
+            battery: "not available (iOS does not allow web pages to read it)"
+        };
+        if (navigator.getBattery) {
+            try {
+                const b = await navigator.getBattery();
+                info.battery = Math.round(b.level * 100) + "%" + (b.charging ? " (charging)" : "");
+            } catch (_) {}
+        }
+        channel.send(JSON.stringify({ t: "info", info }));
+    }
+
+    function renderInfo(remoteId, info) {
+        const card = document.querySelector('[data-device-id="' + remoteId + '"]');
+        if (!card) return;
+        let note = card.querySelector(".info-note");
+        if (!note) {
+            note = document.createElement("p");
+            note.className = "info-note";
+            note.style.cssText = "font-size:13px; color:#cbd5e1; margin-top:10px; white-space:pre-line;";
+            card.querySelector(".files-box").before(note);
+        }
+        note.textContent =
+            "Device: " + info.device + "\n" +
+            "Online: " + (info.online ? "yes" : "no") + "\n" +
+            "Network: " + info.network + "\n" +
+            "Battery: " + info.battery + "\n" +
+            "Screen: " + info.screen + "\n" +
+            "Files shared: " + info.sharedFiles;
+    }
+
+    window.requestDeviceInfo = function (remoteIdRaw) {
+        const remoteId = String(remoteIdRaw);
+        const p = peers[remoteId];
+        if (!p || !p.channel || p.channel.readyState !== "open") {
+            setState(remoteId, "connect first to read live device information", "#fbbf24");
+            return;
+        }
+        p.channel.send(JSON.stringify({ t: "info-req" }));
+    };
 
     window.browseRemoteFiles = function (remoteIdRaw) {
         const remoteId = String(remoteIdRaw);
