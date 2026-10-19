@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>RemoteLink | Device Dashboard</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #0b1120;
+            color: #f1f5f9;
+            min-height: 100vh;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 22px 7%;
+            border-bottom: 1px solid #263247;
+        }
+
+        .logo {
+            font-size: 25px;
+            font-weight: bold;
+            color: #60a5fa;
+        }
+
+        .logo span {
+            color: white;
+        }
+
+        .status {
+            font-size: 13px;
+            color: #fbbf24;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 45px auto;
+            padding: 0 22px;
+        }
+
+        .welcome {
+            margin-bottom: 35px;
+        }
+
+        .welcome h1 {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .welcome p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+
+        .section-title {
+            font-size: 20px;
+            margin-bottom: 18px;
+        }
+
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+            margin-bottom: 35px;
+        }
+
+        .card {
+            background: #141e30;
+            border: 1px solid #29364b;
+            border-radius: 14px;
+            padding: 25px;
+        }
+
+        .device-icon {
+            font-size: 35px;
+            margin-bottom: 18px;
+        }
+
+        .card h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .card p {
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.7;
+            margin-bottom: 18px;
+        }
+
+        .device-status {
+            display: inline-block;
+            padding: 7px 10px;
+            background: #29364b;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #cbd5e1;
+            margin-bottom: 18px;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button.secondary {
+            background: #29364b;
+        }
+
+        button.secondary:hover {
+            background: #37465f;
+        }
+
+        .notice {
+            background: #172337;
+            border: 1px solid #34445d;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .notice h3 {
+            margin-bottom: 10px;
+            color: #93c5fd;
+        }
+
+        .notice p {
+            color: #cbd5e1;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .connection-card {
+            margin-bottom: 35px;
+        }
+
+        .connection-card p {
+            color: #94a3b8;
+            line-height: 1.7;
+            margin-top: 10px;
+        }
+
+        #connection-status {
+            color: #fbbf24;
+            font-weight: bold;
+        }
+
+        footer {
+            text-align: center;
+            padding: 25px;
+            color: #64748b;
+            border-top: 1px solid #263247;
+            font-size: 13px;
+        }
+
+        @media (max-width: 600px) {
+            header {
+                padding: 20px;
+            }
+
+            .logo {
+                font-size: 21px;
+            }
+
+            main {
+                margin-top: 30px;
+            }
+
+            .welcome h1 {font-size: 26px;
+            }
+        }
+        #login-section {display: none !important;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <header>
+        <div class="logo">Remote<span>Link</span></div>
+        <div class="status">● Device dashboard</div>
+    </header>
+
+    <main>
+
+        <section class="welcome">
+            <h1>Welcome to RemoteLink</h1>
+            <p>
+                Your personal dashboard for managing connected devices
+                and accessing files through supported features.
+            </p>
+        </section>
+
+        <section class="connection-card card">
+            <h2 class="section-title">Database Connection</h2>
+
+            <p>
+                Supabase connection status:
+                <span id="connection-status">Not tested</span>
+            </p>
+
+            <button onclick="testConnection()">
+                Test Database Connection
+            </button>
+        </section>
+
+        <section class="card" id="login-section" style="margin-bottom: 30px;">
+    <h2 class="section-title">RemoteLink Account</h2>
+
+    <p id="auth-message" style="margin-bottom: 15px; color: #94a3b8;">
+        Sign in or create an account to get started.
+    </p>
+
+    <form id="auth-form">
+        <label for="email">Email address</label>
+
+        <input
+            type="email"
+            id="email"
+            placeholder="Enter your email"
+            required
+            style="display:block; width:100%; padding:12px;
+            margin:8px 0 16px; border-radius:8px;
+            border:1px solid #29364b; background:#0b1120;
+            color:white;"
+        >
+
+        <label for="password">Password</label>
+
+        <input
+            type="password"
+            id="password"
+            placeholder="Create a password"
+            required
+            minlength="6"
+            style="display:block; width:100%; padding:12px;
+            margin:8px 0 16px; border-radius:8px;
+            border:1px solid #29364b; background:#0b1120;
+            color:white;"
+        >
+
+        <button type="submit" id="login-button">
+            Sign In
+        </button>
+
+        <button type="button" class="secondary" id="signup-button">
+            Create Account
+        </button>
+
+        <button type="button" class="secondary" id="logout-button"
+            style="display:none;">
+            Sign Out
+        </button>
+    </form>
+
+    <p id="account-status" style="margin-top:15px; color:#94a3b8;">
+        Not signed in.
+    </p>
+</section>
+<div style="text-align: right; margin-bottom: 20px;">
+    <button type="button" id="dashboard-logout">Sign Out</button>
+</div>
+<!-- Register a device -->
+<section class="card" id="register-device-section" style="margin-bottom: 30px;">
+    <h2 class="section-title">Register a Device</h2>
+
+    <p style="color: #94a3b8; margin-bottom: 20px;">
+        Add your iPhones to your RemoteLink account.
+    </p>
+
+    <form id="register-device-form">
+        <label for="device-name">Device Name</label>
+
+        <input
+            type="text"
+            id="device-name"
+            placeholder="Example: Home iPhone"
+            required
+            maxlength="100"
+            style="width: 100%; padding: 12px; margin: 10px 0 18px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: white;"
+        >
+
+        <label for="device-type">Device Type</label>
+
+        <select
+            id="device-type"
+            required
+            style="width: 100%; padding: 12px; margin: 10px 0 18px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: white;"
+        >
+            <option value="iPhone">iPhone</option>
+            <option value="iPad">iPad</option>
+            <option value="Other">Other</option>
+        </select>
+
+        <button type="submit" id="register-device-button">
+            Register Device
+        </button>
+    </form>
+
+    <p id="device-message" style="margin-top: 15px; color: #94a3b8;"></p>
+</section>
+        <h2 class="section-title">My Devices</h2>
+
+        <section class="device-grid" id="devices-list">
+    <div class="card">
+        <h3>Loading your devices...</h3>
+        <p>Please wait while RemoteLink retrieves your registered devices.</p>
+    </div>
+</section>
+
+        <section class="notice">
+            <h3>Important Information</h3>
+
+            <p>
+                This is the initial RemoteLink dashboard.
+                The database connection can be tested separately,
+                but the phones are not connected yet.
+                RemoteLink cannot bypass an iPhone's lock screen
+                or provide unrestricted, unattended control of
+                another iPhone. Screen sharing and file access
+                must use features permitted by Apple and approved
+                by the device owner.
+            </p>
+        </section>
+
+    </main>
+
+    <footer>
+        RemoteLink &copy; 2026 | Personal Device Dashboard
+    </footer>
+
+    <!-- Supabase library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+
+    
+    </script>
+
+    <script>
+        /*
+          Replace the two placeholder values below
+          with your own Supabase project details.
+        */
+
+        const SUPABASE_URL = "https://uotffrnssxlikrmjcmtq.supabase.co";
+
+        const SUPABASE_PUBLISHABLE_KEY =
+            "sb_publishable_sXx2hsg_xPw8fKY_T6yCaQ_OsdRhJq_";
+
+        let supabaseClient = null;
+
+        try {
+            if (
+                SUPABASE_URL.startsWith("https://") &&
+                !SUPABASE_URL.includes("PASTE_YOUR_") &&
+                SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_") &&
+                !SUPABASE_PUBLISHABLE_KEY.includes("PASTE_YOUR_")
+            ) {
+                supabaseClient = window.supabase.createClient(
+                    SUPABASE_URL,
+                    SUPABASE_PUBLISHABLE_KEY
+                );
+
+                console.log("RemoteLink connection initialized.");
+                // RemoteLink account login and registration
+
+const authForm = document.getElementById("auth-form");
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const authMessage = document.getElementById("auth-message");
+const accountStatus = document.getElementById("account-status");
+const loginButton = document.getElementById("login-button");
+const signupButton = document.getElementById("signup-button");
+const logoutButton = document.getElementById("logout-button");
+
+function showAuthMessage(message, color = "#94a3b8") {
+    authMessage.textContent = message;
+    authMessage.style.color = color;
+}
+
+function updateAccountDisplay(user) {
+    if (user) {
+        accountStatus.textContent = "Signed in as: " + user.email;
+        loginButton.style.display = "none";
+        signupButton.style.display = "none";
+        logoutButton.style.display = "block";
+        emailInput.disabled = true;
+        passwordInput.disabled = true;
+        showAuthMessage("Welcome to RemoteLink!", "#4ade80");
+    } else {
+        accountStatus.textContent = "Not signed in.";
+        loginButton.style.display = "block";
+        signupButton.style.display = "block";
+        logoutButton.style.display = "none";
+        emailInput.disabled = false;
+        passwordInput.disabled = false;
+    }
+}
+
+if (supabaseClient) {
+    supabaseClient.auth.getSession().then(({ data, error }) => {
+        if (error) {
+            showAuthMessage(error.message, "#f87171");
+            return;
+        }
+
+        updateAccountDisplay(data.session?.user ?? null);
+    });
+
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+        updateAccountDisplay(session?.user ?? null);
+    });
+}
+
+loginButton.addEventListener("click", async (event) => {
+    event.preventDefault();
+
+    if (!supabaseClient) {
+        showAuthMessage("Database connection is not configured.", "#f87171");
+        return;
+    }
+
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email || !password) {
+        showAuthMessage("Enter your email and password.", "#f87171");
+        return;
+    }
+
+    loginButton.disabled = true;
+    showAuthMessage("Signing in...");
+
+    try {
+        const { error } = await supabaseClient.auth.signInWithPassword({
+            email,
+            password
+        });
+
+        if (error) throw error;
+
+        showAuthMessage("Signed in successfully!", "#4ade80");
+        passwordInput.value = "";
+    } catch (error) {
+        showAuthMessage(error.message, "#f87171");
+    } finally {
+        loginButton.disabled = false;
+    }
+});
+
+signupButton.addEventListener("click", async () => {
+    if (!supabaseClient) {
+        showAuthMessage("Database connection is not configured.", "#f87171");
+        return;
+    }
+
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email || !password) {
+        showAuthMessage("Enter an email and a password first.", "#f87171");
+        return;
+    }
+
+    signupButton.disabled = true;
+    showAuthMessage("Creating your account...");
+
+    try {
+        const { data, error } = await supabaseClient.auth.signUp({
+            email,
+            password
+        });
+
+        if (error) throw error;
+
+        if (data.session) {
+            showAuthMessage("Account created successfully!", "#4ade80");
+        } else {
+            showAuthMessage(
+                "Account created. Check your email to confirm your account before signing in.",
+                "#4ade80"
+            );
+        }
+    } catch (error) {
+        showAuthMessage(error.message, "#f87171");
+    } finally {
+        signupButton.disabled = false;
+    }
+});
+
+logoutButton.addEventListener("click", async () => {
+    if (!supabaseClient) return;
+
+    logoutButton.disabled = true;
+
+    try {
+        const { error } = await supabaseClient.auth.signOut();
+
+        if (error) throw error;
+
+        passwordInput.value = "";
+        showAuthMessage("You have signed out.", "#4ade80");
+    } catch (error) {
+        showAuthMessage(error.message, "#f87171");
+    } finally {
+        logoutButton.disabled = false;
+    }
+});
+            } else {
+                console.log("Add your Supabase URL and publishable key first."
+                );
+            }
+        } catch (error) {
+            console.error("Connection setup error:", error);
+        }
+
+        async function testConnection() {
+            const status = document.getElementById("connection-status");
+
+            if (!supabaseClient) {
+                status.textContent = "Setup required";
+                status.style.color = "#f87171";
+
+                alert(
+                    "Please add your Supabase Project URL and publishable key."
+                );
+
+                return;
+            }
+
+            status.textContent = "Testing...";
+            status.style.color = "#fbbf24";
+
+            try {
+                const { error } = await supabaseClient
+                    .from("devices")
+                    .select("id")
+                    .limit(1);
+
+                if (error) {
+                    throw error;
+                }
+
+                status.textContent = "Connected successfully";
+                status.style.color = "#4ade80";
+
+                alert("RemoteLink successfully connected to Supabase!");
+            } catch (error) {
+                console.error("Database test failed:", error);
+
+                status.textContent = "Check configuration";
+                status.style.color = "#f87171";
+
+                alert(
+                    "The connection test did not succeed. " +
+                    "Please check your Project URL, publishable key, " +
+                    "and database permissions."
+                );
+            }
+        }
+
+        function showDeviceInfo(deviceName) {
+            alert(
+                deviceName +
+                "\n\nDevice information is not available yet. " +
+                "We still need to build the supported device connection."
+            );
+        }
+
+        function showFileInfo() {
+            alert(
+                "File access is not configured yet. " +
+                "We will work on supported file selection and sharing next."
+            );
+        }
+
+        console.log("RemoteLink dashboard loaded.");
+        // Protect the dashboard: require a signed-in user
+if (supabaseClient) {
+    supabaseClient.auth.getSession().then(({ data, error }) => {
+        if (error || !data.session) {
+            window.location.replace("index.html");
+        }
+    });
+} else {
+    window.location.replace("index.html");
+}
+// Make the dashboard Sign Out button work
+const dashboardLogoutButton = document.getElementById("dashboard-logout");
+
+if (dashboardLogoutButton) {
+    dashboardLogoutButton.addEventListener("click", async () => {
+        dashboardLogoutButton.disabled = true;
+
+        try {
+            if (!supabaseClient) {
+                throw new Error("Database connection is not configured.");
+            }
+
+            const { error } = await supabaseClient.auth.signOut();
+
+            if (error) {
+                throw error;
+            }
+
+            window.location.replace("index.html");
+
+        } catch (error) {
+            alert("Could not sign out: " + error.message);
+            dashboardLogoutButton.disabled = false;
+        }
+    });
+}
+// Register devices in Supabase
+const registerDeviceForm = document.getElementById("register-device-form");
+const deviceNameInput = document.getElementById("device-name");
+const deviceTypeInput = document.getElementById("device-type");
+const deviceMessage = document.getElementById("device-message");
+const registerDeviceButton = document.getElementById("register-device-button");
+
+if (registerDeviceForm) {
+    registerDeviceForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        if (!supabaseClient) {
+            deviceMessage.textContent = "Database connection is not configured.";
+            deviceMessage.style.color = "#f87171";
+            return;
+        }
+
+        const deviceName = deviceNameInput.value.trim();
+        const deviceType = deviceTypeInput.value;
+
+        if (!deviceName) {
+            deviceMessage.textContent = "Please enter a device name.";
+            deviceMessage.style.color = "#f87171";
+            return;
+        }
+
+        registerDeviceButton.disabled = true;
+        deviceMessage.textContent = "Registering device...";
+        deviceMessage.style.color = "#94a3b8";
+
+        try {
+            const { data: sessionData, error: sessionError } =
+                await supabaseClient.auth.getSession();
+
+            if (sessionError) {
+                throw sessionError;
+            }
+
+            const user = sessionData.session?.user;
+
+            if (!user) {
+                window.location.replace("index.html");
+                return;
+            }
+
+            const { error } = await supabaseClient
+                .from("devices")
+                .insert({
+                    user_id: user.id,
+                    device_name: deviceName,
+                    device_type: deviceType
+                });
+
+            if (error) {
+                throw error;
+            }
+
+            deviceMessage.textContent =
+                "Device registered successfully!";
+            deviceMessage.style.color = "#4ade80";
+
+            registerDeviceForm.reset();
+
+        } catch (error) {
+            deviceMessage.textContent =
+                "Could not register device: " + error.message;
+            deviceMessage.style.color = "#f87171";
+        } finally {
+            registerDeviceButton.disabled = false;
+        }
+    });
+}
+// Load the devices registered to the signed-in user
+const ONLINE_WINDOW_MS = 75000; // 30s check-in interval + margin
+const THIS_DEVICE_KEY = "remotelink_this_device_id";
+let registeredDevices = [];
+let sharedFiles = [];
+
+function getThisDeviceId() {
+    return localStorage.getItem(THIS_DEVICE_KEY);
+}
+
+function isOnline(lastSeen) {
+    return !!lastSeen && Date.now() - new Date(lastSeen).getTime() < ONLINE_WINDOW_MS;
+}
+
+function formatLastSeen(lastSeen) {
+    if (!lastSeen) return "Never checked in";
+    const secs = Math.max(0, Math.round((Date.now() - new Date(lastSeen).getTime()) / 1000));
+    if (secs < 60) return "Last seen " + secs + "s ago";
+    if (secs < 3600) return "Last seen " + Math.floor(secs / 60) + " min ago";
+    return "Last seen " + new Date(lastSeen).toLocaleString();
+}
+
+// Re-computes online/offline from the cached last_seen values (no network call)
+function refreshStatusBadges() {
+    document.querySelectorAll("[data-device-id]").forEach((card) => {
+        const device = registeredDevices.find((d) => String(d.id) === card.dataset.deviceId);
+        if (!device) return;
+        const online = isOnline(device.last_seen);
+        const badge = card.querySelector(".device-status");
+        badge.textContent = (online ? "● Online" : "○ Offline") + " — " + formatLastSeen(device.last_seen);
+        badge.style.color = online ? "#4ade80" : "#f87171";
+        const connectBtn = card.querySelector(".connect-btn");
+        if (connectBtn) {
+            connectBtn.disabled = !online;
+            connectBtn.style.display = card.dataset.deviceId === getThisDeviceId() ? "none" : "";
+            const ps = card.querySelector(".peer-state");
+            if (!online && ps && ps.textContent === "Link: not connected") {
+                ps.textContent = "Link: not connected (device is offline, open RemoteLink on it)";
+            } else if (online && ps && ps.textContent.indexOf("device is offline") > -1) {
+                ps.textContent = "Link: not connected";
+            }
+        }
+    });
+}
+
+async function loadRegisteredDevices(silent = false) {
+    const devicesList = document.getElementById("devices-list");
+
+    if (!devicesList || !supabaseClient) {
+        return;
+    }
+
+    if (!silent) {
+        devicesList.replaceChildren();
+
+        const loadingCard = document.createElement("div");
+        loadingCard.className = "card";
+
+        const loadingTitle = document.createElement("h3");
+        loadingTitle.textContent = "Loading your devices...";
+
+        loadingCard.appendChild(loadingTitle);
+        devicesList.appendChild(loadingCard);
+    }
+
+    try {
+        const { data: sessionData, error: sessionError } =
+            await supabaseClient.auth.getSession();
+
+        if (sessionError) {
+            throw sessionError;
+        }
+
+        const user = sessionData.session?.user;
+
+        if (!user) {
+            window.location.replace("index.html");
+            return;
+        }
+
+        const { data: devices, error } = await supabaseClient
+            .from("devices")
+            .select("id, device_name, device_type, last_seen, created_at")
+            .order("created_at", { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        registeredDevices = devices || [];
+
+        // Silent refresh: if the device list is unchanged, only update badges
+        if (silent) {
+            const shown = [...devicesList.querySelectorAll("[data-device-id]")]
+                .map((c) => c.dataset.deviceId).join(",");
+                const fresh = registeredDevices.map((d) => String(d.id)).join(",");
+            if (shown === fresh && fresh !== "") {
+                refreshStatusBadges();
+                return;
+            }
+        }
+
+        devicesList.replaceChildren();
+        if (window.onDevicesLoaded) window.onDevicesLoaded();
+
+        if (!devices || devices.length === 0) {
+            const emptyCard = document.createElement("div");
+            emptyCard.className = "card";
+
+            const emptyTitle = document.createElement("h3");
+            emptyTitle.textContent = "No devices registered yet";
+
+            const emptyText = document.createElement("p");
+            emptyText.textContent =
+                "Use the Register a Device form to add your iPhone.";
+
+            emptyCard.append(emptyTitle, emptyText);
+            devicesList.appendChild(emptyCard);
+            return;
+        }
+
+        devices.forEach((device) => {
+            const card = document.createElement("div");
+            card.className = "card";
+            card.dataset.deviceId = String(device.id);
+
+            const icon = document.createElement("div");
+            icon.className = "device-icon";
+            icon.textContent =
+                device.device_type === "iPhone" ? "📱" : "💻";
+
+            const title = document.createElement("h3");
+            title.textContent = device.device_name;
+
+            const description = document.createElement("p");
+            description.textContent =
+                "Device type: " + device.device_type +
+                (String(device.id) === getThisDeviceId() ? " (this browser)" : "");
+
+            const status = document.createElement("div");
+            status.className = "device-status";
+
+            const peerState = document.createElement("p");
+            peerState.className = "peer-state";
+            peerState.textContent = "Link: not connected";
+
+            const connectButton = document.createElement("button");
+            connectButton.type = "button";
+            connectButton.className = "connect-btn";
+            connectButton.textContent = "Connect (secure link)";
+            connectButton.disabled = true;
+            connectButton.addEventListener("click", () => {
+                window.startPeerConnection(device.id, peerState);
+            });
+            if (String(device.id) === getThisDeviceId()) connectButton.style.display = "none";
+
+            const infoButton = document.createElement("button");
+            infoButton.type = "button";
+            infoButton.textContent = "Device Information";
+            infoButton.addEventListener("click", () => {
+                showDeviceInfo(device.device_name);
+            });
+
+            const fileButton = document.createElement("button");
+            fileButton.type = "button";
+            fileButton.className = "secondary";
+            fileButton.textContent = "Browse Shared Files";
+            fileButton.addEventListener("click", () => {
+                window.browseRemoteFiles(device.id);
+            });
+
+            const filesBoxEl = document.createElement("div");
+            filesBoxEl.className = "files-box";
+            filesBoxEl.style.marginTop = "12px";
+
+            card.append(
+                icon,
+                title,
+                description,
+                status,
+                peerState,
+                connectButton,
+                infoButton,
+                fileButton,
+                filesBoxEl
+            );
+
+            devicesList.appendChild(card);
+        });
+        refreshStatusBadges();
+
+    } catch (error) {
+        devicesList.replaceChildren();
+
+        const errorCard = document.createElement("div");
+        errorCard.className = "card";
+
+        const errorTitle = document.createElement("h3");
+        errorTitle.textContent = "Could not load your devices";
+
+        const errorText = document.createElement("p");
+        errorText.textContent = error.message;
+
+        errorCard.append(errorTitle, errorText);
+        devicesList.appendChild(errorCard);
+    }
+}
+
+// Load devices when the dashboard opens
+// RemoteLink: real device check-in
+(function () {
+    const devicesList = document.getElementById("devices-list");
+
+    if (!devicesList || !supabaseClient) return;
+
+    const panel = document.createElement("div");
+    panel.className = "card";
+    panel.style.marginBottom = "20px";
+
+    const title = document.createElement("h3");
+    title.textContent = "Device Connection";
+
+    const description = document.createElement("p");
+    description.textContent =
+        "Send a real check-in from this device to Supabase.";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "Check In This Device";
+
+    const pickerLabel = document.createElement("label");
+    pickerLabel.textContent = "This browser is: ";
+    const picker = document.createElement("select");
+    picker.style.cssText =
+        "padding:8px; margin:10px 0; border-radius:8px; border:1px solid #334155; background:#1e293b; color:white;";
+    pickerLabel.appendChild(picker);
+
+    window.onDevicesLoaded = function () {
+        picker.replaceChildren();
+        const none = document.createElement("option");
+        none.value = "";
+        none.textContent = "— choose —";
+        picker.appendChild(none);
+        registeredDevices.forEach((d) => {
+            const o = document.createElement("option");
+            o.value = d.id;
+            o.textContent = d.device_name + " (" + d.device_type + ")";
+            picker.appendChild(o);
+        });
+        picker.value = getThisDeviceId() || "";
+    };
+
+    picker.addEventListener("change", () => {
+        if (picker.value) localStorage.setItem(THIS_DEVICE_KEY, picker.value);
+        else localStorage.removeItem(THIS_DEVICE_KEY);
+        automaticCheckIn();
+        loadRegisteredDevices(true);
+        if (window.restartSignaling) window.restartSignaling();
+    });
+
+    const status = document.createElement("p");
+    status.setAttribute("role", "status");
+    status.textContent = "Ready to connect.";
+
+    button.addEventListener("click", async function () {
+        button.disabled = true;
+        status.textContent = "Sending check-in...";
+
+        try {
+            const { data: sessionData, error: sessionError } =
+                await supabaseClient.auth.getSession();
+
+            if (sessionError) throw sessionError;
+
+            const user = sessionData.session?.user;
+
+            if (!user) {
+                throw new Error("Please sign in first.");
+            }
+
+            const thisId = getThisDeviceId();
+            if (!thisId) {
+                throw new Error('Choose "This browser is" first.');
+            }
+
+            const { data, error } = await supabaseClient
+                .from("devices")
+                .update({
+                    last_seen: new Date().toISOString()
+                })
+                .eq("user_id", user.id)
+                .eq("id", thisId)
+                .select("id, last_seen");
+
+            if (error) throw error;
+
+            if (!data || data.length === 0) {
+                throw new Error("The selected device was not found for this account.");
+            }
+
+            status.textContent =
+                "Check-in successful! Last check-in: " +
+                new Date(data[0].last_seen).toLocaleString();
+
+        } catch (error) {
+            status.textContent = "Check-in failed: " + error.message;
+        } finally {
+            button.disabled = false;
+        }
+    });
+
+    const shareLabel = document.createElement("label");
+    shareLabel.style.cssText = "display:block; margin:12px 0; color:#cbd5e1; font-size:14px;";
+    shareLabel.textContent = "Share files from this device (only your signed-in devices can see them): ";
+    const shareInput = document.createElement("input");
+    shareInput.type = "file";
+    shareInput.multiple = true;
+    shareInput.style.cssText = "display:block; margin-top:8px; color:white;";
+    shareInput.addEventListener("change", () => {
+        sharedFiles = Array.from(shareInput.files);
+        status.textContent = sharedFiles.length + " file(s) shared. Keep this page open.";
+        if (window.announceShared) window.announceShared();
+    });
+    shareLabel.appendChild(shareInput);
+
+    const signalLine = document.createElement("p");
+    signalLine.style.cssText = "font-size:13px; color:#94a3b8;";
+    signalLine.textContent = "Signaling: starting...";
+    window.setSignalStatus = (t) => { signalLine.textContent = t; };
+
+    panel.append(title, description, pickerLabel, button, shareLabel, signalLine, status);
+    // Automatically check in every 30 seconds while the page is open.
+async function automaticCheckIn() {
+    try {
+        const { data: sessionData, error: sessionError } =
+            await supabaseClient.auth.getSession();
+
+        if (sessionError) throw sessionError;
+
+        const user = sessionData.session?.user;
+        if (!user) return;
+
+        const thisId = getThisDeviceId();
+        if (!thisId) return;
+
+        const { error } = await supabaseClient
+            .from("devices")
+            .update({ last_seen: new Date().toISOString() })
+            .eq("user_id", user.id)
+            .eq("id", thisId);
+
+        if (error) {
+            console.error("Automatic check-in failed:", error.message);
+        }
+    } catch (error) {
+        console.error("Automatic check-in failed:", error.message);
+    }
+}
+
+automaticCheckIn();
+setInterval(automaticCheckIn, 30000);
+    devicesList.insertAdjacentElement("beforebegin", panel);
+})();
+loadRegisteredDevices();
+
+// RemoteLink: live status refresh + WebRTC peer link (signaling over Supabase Realtime)
+(function () {
+    if (!supabaseClient) return;
+
+    // ---- Live status: Realtime push + polling fallback + clock-based re-render ----
+    let reloadTimer = null;
+    function scheduleReload() {
+        clearTimeout(reloadTimer);
+        reloadTimer = setTimeout(() => loadRegisteredDevices(true), 300);
+    }
+    setInterval(refreshStatusBadges, 5000);
+    setInterval(() => loadRegisteredDevices(true), 15000);
+
+    // ---- WebRTC ----
+    const RTC_CONFIG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+    const peers = {}; // remote device id -> { pc, channel, pending, timer }
+    let signalChannel = null;
+    let devicesChannel = null;
+    let signalUserId = null;
+
+    function setState(deviceId, text, color) {
+        const el = document.querySelector(
+            '[data-device-id="' + deviceId + '"] .peer-state'
+        );
+        if (el) {
+            el.textContent = "Link: " + text;
+            el.style.color = color || "#94a3b8";
+        }
+    }
+
+    function sendSignal(payload) {
+        if (!signalChannel) return;
+        signalChannel.send({ type: "broadcast", event: "signal", payload });
+    }
+
+    function closePeer(id) {
+        const p = peers[id];
+        if (!p) return;
+        clearTimeout(p.timer);
+        try { p.channel && p.channel.close(); } catch (_) {}
+        try { p.pc.close(); } catch (_) {}
+        delete peers[id];
+    }
+
+    function createPeer(remoteId) {
+        closePeer(remoteId);
+        const pc = new RTCPeerConnection(RTC_CONFIG);
+        const peer = { pc, channel: null, pending: [], timer: null };
+        peers[remoteId] = peer;
+
+        pc.onicecandidate = (e) => {
+            if (e.candidate) {
+                sendSignal({
+                    type: "ice", from: getThisDeviceId(), to: remoteId,
+                    candidate: e.candidate.toJSON()
+                });
+            }
+        };
+        pc.onconnectionstatechange = () => {
+            if (pc.connectionState === "failed") {
+                setState(remoteId, "failed (network may need a TURN relay)", "#f87171");
+                closePeer(remoteId);
+            } else if (pc.connectionState === "disconnected" || pc.connectionState === "closed") {
+                setState(remoteId, "disconnected", "#fbbf24");
+            }
+        };
+        peer.timer = setTimeout(() => {
+            if (!peer.channel || peer.channel.readyState !== "open") {
+                setState(remoteId, "timed out — is the other device open and checked in?", "#f87171");
+                closePeer(remoteId);
+            }
+        }, 25000);
+        return peer;
+    }
+
+    function wireChannel(remoteId, channel) {
+        const peer = peers[remoteId];
+        peer.channel = channel;
+        channel.onopen = () => {
+            clearTimeout(peer.timer);
+            setState(remoteId, "connected (encrypted peer-to-peer)", "#4ade80");
+            channel.send(JSON.stringify({ t: "ping", ts: Date.now() }));
+        };
+        channel.onclose = () => {
+            if (peers[remoteId] === peer) setState(remoteId, "closed", "#fbbf24");
+        };
+        channel.binaryType = "arraybuffer";
+        channel.onmessage = (e) => {
+            if (typeof e.data !== "string") { onChunk(remoteId, e.data); return; }
+            let msg;
+            try { msg = JSON.parse(e.data); } catch (_) { return; }
+            if (msg.t === "ping") {
+                channel.send(JSON.stringify({ t: "pong", ts: msg.ts }));
+            } else if (msg.t === "pong") {
+                setState(remoteId,
+                    "connected (encrypted peer-to-peer), round trip " +
+                    (Date.now() - msg.ts) + " ms", "#4ade80");
+            } else if (msg.t === "list-req") {
+                sendList(channel);
+            } else if (msg.t === "get") {
+                sendFile(channel, msg.id);
+            } else if (msg.t === "list") {
+                renderList(remoteId, msg.files);
+            } else if (msg.t === "file-start") {
+                peers[remoteId].incoming = { meta: msg, chunks: [], received: 0 };
+                filesMessage(remoteId, "Receiving " + msg.name + "...");
+            } else if (msg.t === "file-end") {
+                finishFile(remoteId);
+            } else if (msg.t === "error") {
+                filesMessage(remoteId, msg.msg);
+            }
+        };
+    }
+
+    // ---- File sharing over the data channel ----
+    const CHUNK_SIZE = 16384;
+    const MAX_RECEIVE_BYTES = 500 * 1024 * 1024;
+
+    function sendList(channel) {
+        channel.send(JSON.stringify({
+            t: "list",
+            files: sharedFiles.map((f, i) => ({ id: i, name: f.name, size: f.size, type: f.type }))
+        }));
+    }
+
+    async function sendFile(channel, id) {
+        const f = sharedFiles[id];
+        if (!f) {
+            channel.send(JSON.stringify({ t: "error", msg: "That file is no longer shared." }));
+            return;
+        }
+        channel.send(JSON.stringify({ t: "file-start", id, name: f.name, size: f.size, type: f.type }));
+        channel.bufferedAmountLowThreshold = 262144;
+        for (let off = 0; off < f.size; off += CHUNK_SIZE) {
+            if (channel.readyState !== "open") return;
+            if (channel.bufferedAmount > 1048576) {
+                await new Promise((r) => {
+                    channel.onbufferedamountlow = () => { channel.onbufferedamountlow = null; r(); };
+                });
+            }
+            channel.send(await f.slice(off, off + CHUNK_SIZE).arrayBuffer());
+        }
+        channel.send(JSON.stringify({ t: "file-end", id }));
+    }
+
+    function filesBox(remoteId) {
+        return document.querySelector('[data-device-id="' + remoteId + '"] .files-box');
+    }
+
+    function filesMessage(remoteId, text) {
+        const box = filesBox(remoteId);
+        if (!box) return;
+        let note = box.querySelector(".files-note");
+        if (!note) {
+            note = document.createElement("p");
+            note.className = "files-note";
+            box.prepend(note);
+        }
+        note.textContent = text;
+    }
+
+    function formatSize(n) {
+        if (n < 1024) return n + " B";
+        if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+        return (n / 1048576).toFixed(1) + " MB";
+    }
+
+    function renderList(remoteId, files) {
+        const box = filesBox(remoteId);
+        if (!box) return;
+        box.replaceChildren();
+        if (!files.length) {
+            filesMessage(remoteId, "That device is not sharing any files yet. Ask it to choose files under \"Share files from this device\".");
+            return;
+        }
+        filesMessage(remoteId, files.length + " shared file(s):");
+        files.forEach((f) => {
+            const row = document.createElement("div");
+            row.style.cssText = "margin:8px 0; font-size:13px; color:#cbd5e1;";
+            const label = document.createElement("span");
+            label.textContent = f.name + " (" + formatSize(f.size) + ") ";
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "secondary";
+            btn.textContent = "Download";
+            btn.addEventListener("click", () => {
+                if (f.size > MAX_RECEIVE_BYTES) { filesMessage(remoteId, "File is too large for in-browser download (500 MB max)."); return; }
+                const p = peers[remoteId];
+                if (!p || !p.channel || p.channel.readyState !== "open") { filesMessage(remoteId, "Not connected."); return; }
+                p.channel.send(JSON.stringify({ t: "get", id: f.id }));
+                filesMessage(remoteId, "Requesting " + f.name + "...");
+            });
+            row.append(label, btn);
+            box.appendChild(row);
+        });
+    }
+
+    function onChunk(remoteId, buf) {
+        const inc = peers[remoteId] && peers[remoteId].incoming;
+        if (!inc) return;
+        inc.chunks.push(buf);
+        inc.received += buf.byteLength;
+        if (inc.received > MAX_RECEIVE_BYTES) { peers[remoteId].incoming = null; filesMessage(remoteId, "Transfer aborted: too large."); return; }
+        const pct = inc.meta.size ? Math.round((inc.received / inc.meta.size) * 100) : 100;
+        filesMessage(remoteId, "Receiving " + inc.meta.name + ": " + pct + "%");
+    }
+
+    function finishFile(remoteId) {
+        const peer = peers[remoteId];
+        const inc = peer && peer.incoming;
+        if (!inc) return;
+        peer.incoming = null;
+        if (inc.received !== inc.meta.size) { filesMessage(remoteId, "Transfer incomplete. Try again."); return; }
+        const blob = new Blob(inc.chunks, { type: inc.meta.type || "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+        filesMessage(remoteId, "Received " + inc.meta.name + " (" + formatSize(inc.received) + ")");
+        const box = filesBox(remoteId);
+        if (!box) return;
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = inc.meta.name;
+        a.textContent = "Save " + inc.meta.name;
+        a.style.cssText = "display:block; color:#60a5fa; margin:8px 0;";
+        box.appendChild(a);
+        if ((inc.meta.type || "").startsWith("image/")) {
+            const img = document.createElement("img");
+            img.src = url;
+            img.style.cssText = "max-width:100%; border-radius:8px; margin-top:8px;";
+            box.appendChild(img);
+        }
+    }
+
+    window.browseRemoteFiles = function (remoteIdRaw) {
+        const remoteId = String(remoteIdRaw);
+        const p = peers[remoteId];
+        if (!p || !p.channel || p.channel.readyState !== "open") {
+            filesMessage(remoteId, "Connect first (secure link), then browse files.");
+            return;
+        }
+        filesMessage(remoteId, "Asking for the file list...");
+        p.channel.send(JSON.stringify({ t: "list-req" }));
+    };
+
+    window.announceShared = function () {
+        Object.values(peers).forEach((p) => {
+            if (p.channel && p.channel.readyState === "open") sendList(p.channel);
+        });
+    };
+
+    async function flushPending(peer) {
+        for (const c of peer.pending.splice(0)) {
+            try { await peer.pc.addIceCandidate(c); } catch (e) { console.warn(e); }
+        }
+    }
+
+    // Caller side (HP clicks Connect)
+    window.startPeerConnection = async function (remoteIdRaw) {
+        const remoteId = String(remoteIdRaw);
+        const myId = getThisDeviceId();
+        if (!myId) { setState(remoteId, 'pick this device under "This browser is:" first', "#f87171"); return; }
+        if (!signalChannel) {
+            setState(remoteId, "reconnecting to signaling...", "#fbbf24");
+            await startSignaling();
+            await new Promise((r) => setTimeout(r, 2000));
+        }
+        if (!signalChannel) { setState(remoteId, "signaling not connected - reload the page", "#f87171"); return; }
+        try {
+            setState(remoteId, "connecting...", "#fbbf24");
+            const peer = createPeer(remoteId);
+            wireChannel(remoteId, peer.pc.createDataChannel("remotelink"));
+            const offer = await peer.pc.createOffer();
+            await peer.pc.setLocalDescription(offer);
+            sendSignal({ type: "offer", from: myId, to: remoteId, sdp: peer.pc.localDescription.toJSON() });
+        } catch (e) {
+            setState(remoteId, "error: " + e.message, "#f87171");
+        }
+    };
+
+    async function onSignal(p) {
+        const myId = getThisDeviceId();
+        if (!myId || p.to !== myId || !p.from) return;
+        try {
+            if (p.type === "offer") {
+                const peer = createPeer(p.from);
+                peer.pc.ondatachannel = (e) => wireChannel(p.from, e.channel);
+                await peer.pc.setRemoteDescription(p.sdp);
+                await flushPending(peer);
+                const answer = await peer.pc.createAnswer();
+                await peer.pc.setLocalDescription(answer);
+                sendSignal({ type: "answer", from: myId, to: p.from, sdp: peer.pc.localDescription.toJSON() });
+                setState(p.from, "incoming connection...", "#fbbf24");
+            } else if (p.type === "answer") {
+                const peer = peers[p.from];
+                if (!peer) return;
+                await peer.pc.setRemoteDescription(p.sdp);
+                await flushPending(peer);
+            } else if (p.type === "ice") {
+                const peer = peers[p.from];
+                if (!peer) return;
+                if (peer.pc.remoteDescription) await peer.pc.addIceCandidate(p.candidate);
+                else peer.pending.push(p.candidate);
+            }
+        } catch (e) {
+            console.error("Signaling error:", e);
+            setState(p.from, "error: " + e.message, "#f87171");
+        }
+    }
+
+    async function startSignaling() {
+        const { data } = await supabaseClient.auth.getSession();
+        const user = data.session?.user;
+        if (!user) return;
+        signalUserId = user.id;
+
+        if (signalChannel) {
+            await supabaseClient.removeChannel(signalChannel);
+            signalChannel = null;
+        }
+
+        // Private channel: access is enforced by RLS policies on realtime.messages
+        const ch = supabaseClient.channel("signal:" + user.id, {
+            config: { private: true, broadcast: { self: false } }
+        });
+        ch.on("broadcast", { event: "signal" }, ({ payload }) => onSignal(payload));
+        ch.subscribe((status, err) => {
+            console.log("Signaling channel:", status, err || "");
+            if (status === "SUBSCRIBED") signalChannel = ch;
+            else if (signalChannel === ch) signalChannel = null;
+            if (window.setSignalStatus) {
+                window.setSignalStatus(
+                    status === "SUBSCRIBED"
+                        ? "Signaling: connected"
+                        : "Signaling: " + status + (err && err.message ? " - " + err.message : "")
+                );
+            }
+        });
+
+        // Push updates when any device row changes (last_seen)
+        if (devicesChannel) await supabaseClient.removeChannel(devicesChannel);
+        devicesChannel = supabaseClient
+            .channel("devices-live")
+            .on("postgres_changes",
+                { event: "*", schema: "public", table: "devices", filter: "user_id=eq." + user.id },
+                scheduleReload)
+            .subscribe();
+    }
+
+    window.restartSignaling = startSignaling;
+    startSignaling();
+
+    // iOS suspends the page when the screen locks or you switch apps: recover on return
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            automaticCheckIn();
+            startSignaling();
+            loadRegisteredDevices(true);
+        }
+    });
+})();
+    </script>
+
+</body>
+</html>
