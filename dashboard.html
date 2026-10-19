@@ -1088,8 +1088,8 @@ loadRegisteredDevices();
     // ---- WebRTC ----
     // Free TURN relay (Metered.ca). Fill these in after creating a free account; leave
     // empty to use direct connections only (STUN).
-    const METERED_APP = "";      // e.g. "remotelink" (from remotelink.metered.live)
-    const METERED_API_KEY = "";  // from the Metered dashboard > TURN Server > API key
+    const METERED_APP = "remotelink-2026";
+    const METERED_API_KEY = "20b03648bc4e8cfe71b35f6bb33dcb1251ad";
 
     let RTC_CONFIG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
     const rtcReady = (async () => {
