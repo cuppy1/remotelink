@@ -1289,6 +1289,8 @@ loadRegisteredDevices();
                 sendFile(channel, msg.id);
             } else if (msg.t === "list") {
                 renderList(remoteId, msg.files);
+            } else if (msg.t === "thumb") {
+                onThumb(remoteId, msg);
             } else if (msg.t === "file-start") {
                 peers[remoteId].incoming = { meta: msg, chunks: [], received: 0 };
                 filesMessage(remoteId, "Receiving " + msg.name + "...");
@@ -1353,34 +1355,169 @@ loadRegisteredDevices();
         return (n / 1048576).toFixed(1) + " MB";
     }
 
+    function kindOf(f) {
+        const t = f.type || "";
+        if (t.startsWith("image/")) return "photos";
+        if (t.startsWith("video/")) return "videos";
+        return "files";
+    }
+
+    function sendGet(remoteId, f) {
+        if (f.size > MAX_RECEIVE_BYTES) { filesMessage(remoteId, "File is too large for in-browser download (500 MB max)."); return false; }
+        const p = peers[remoteId];
+        if (!p || !p.channel || p.channel.readyState !== "open") { filesMessage(remoteId, "Not connected."); return false; }
+        p.viewId = f.id;
+        p.channel.send(JSON.stringify({ t: "get", id: f.id }));
+        filesMessage(remoteId, "Loading " + f.name + "...");
+        return true;
+    }
+
+    function pumpThumbs(remoteId) {
+        const p = peers[remoteId];
+        if (!p || !p.channel || p.channel.readyState !== "open" || p.thumbBusy) return;
+        const id = p.thumbQueue && p.thumbQueue.shift();
+        if (id === undefined) return;
+        p.thumbBusy = true;
+        clearTimeout(p.thumbTimer);
+        p.thumbTimer = setTimeout(() => { p.thumbBusy = false; pumpThumbs(remoteId); }, 8000);
+        p.channel.send(JSON.stringify({ t: "thumb-req", id }));
+    }
+
+    function onThumb(remoteId, msg) {
+        const p = peers[remoteId];
+        if (!p) return;
+        clearTimeout(p.thumbTimer);
+        p.thumbBusy = false;
+        const tile = p.tiles && p.tiles[msg.id];
+        if (tile && msg.data) {
+            tile.style.backgroundImage = "url(data:image/jpeg;base64," + msg.data + ")";
+            tile.textContent = tile.dataset.video ? "\u25B6" : "";
+        }
+        pumpThumbs(remoteId);
+    }
+
+    function showViewer(remoteId, meta, url) {
+        const old = document.getElementById("rl-viewer");
+        if (old) old.remove();
+        const wrap = document.createElement("div");
+        wrap.id = "rl-viewer";
+        wrap.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px;";
+        const type = meta.type || "";
+        let media;
+        if (type.startsWith("video/")) {
+            media = document.createElement("video");
+            media.controls = true;
+            media.autoplay = true;
+            media.playsInline = true;
+        } else if (type.startsWith("image/")) {
+            media = document.createElement("img");
+        } else {
+            media = document.createElement("div");
+            media.textContent = "\uD83D\uDCC4 " + meta.name;
+            media.style.cssText = "color:#e5e7eb; font-size:18px; margin:30px;";
+        }
+        if (media.tagName !== "DIV") {
+            media.src = url;
+            media.style.cssText = "max-width:100%; max-height:75vh; border-radius:10px;";
+        }
+        const bar = document.createElement("div");
+        bar.style.cssText = "display:flex; gap:12px; margin-top:14px; align-items:center; flex-wrap:wrap; justify-content:center;";
+        const title = document.createElement("span");
+        title.style.cssText = "color:#cbd5e1; font-size:13px;";
+        title.textContent = meta.name + " (" + formatSize(meta.size) + ")";
+        const save = document.createElement("a");
+        save.href = url;
+        save.download = meta.name;
+        save.textContent = "Save to this device";
+        save.style.cssText = "background:#2563eb; color:#fff; padding:10px 16px; border-radius:10px; text-decoration:none; font-weight:600;";
+        const close = document.createElement("button");
+        close.type = "button";
+        close.textContent = "Close";
+        close.className = "secondary";
+        close.addEventListener("click", () => wrap.remove());
+        bar.append(title, save, close);
+        wrap.append(media, bar);
+        document.body.appendChild(wrap);
+    }
+
     function renderList(remoteId, files) {
         const box = filesBox(remoteId);
         if (!box) return;
         box.replaceChildren();
         if (!files.length) {
-            filesMessage(remoteId, "That device is not sharing any files yet. Ask it to choose files under \"Share files from this device\".");
+            filesMessage(remoteId, "That device has nothing to share yet. On the home iPhone app, tap \"Allow access to Photos\" or add a folder.");
             return;
         }
-        filesMessage(remoteId, files.length + " shared file(s):");
-        files.forEach((f) => {
-            const row = document.createElement("div");
-            row.style.cssText = "margin:8px 0; font-size:13px; color:#cbd5e1;";
-            const label = document.createElement("span");
-            label.textContent = f.name + " (" + formatSize(f.size) + ") ";
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "secondary";
-            btn.textContent = "Download";
-            btn.addEventListener("click", () => {
-                if (f.size > MAX_RECEIVE_BYTES) { filesMessage(remoteId, "File is too large for in-browser download (500 MB max)."); return; }
-                const p = peers[remoteId];
-                if (!p || !p.channel || p.channel.readyState !== "open") { filesMessage(remoteId, "Not connected."); return; }
-                p.channel.send(JSON.stringify({ t: "get", id: f.id }));
-                filesMessage(remoteId, "Requesting " + f.name + "...");
+        const p = peers[remoteId];
+        p.tiles = {};
+        p.thumbQueue = [];
+        p.thumbBusy = false;
+
+        const groups = { photos: [], videos: [], files: [] };
+        files.forEach((f) => groups[kindOf(f)].push(f));
+        const names = { photos: "Photos", videos: "Videos", files: "Files" };
+        filesMessage(remoteId, files.length + " item(s). Tap one to open it.");
+
+        const tabs = document.createElement("div");
+        tabs.style.cssText = "display:flex; gap:8px; margin:10px 0;";
+        const grid = document.createElement("div");
+        grid.style.cssText = "display:grid; grid-template-columns:repeat(3,1fr); gap:4px;";
+        box.append(tabs, grid);
+
+        const observer = "IntersectionObserver" in window ? new IntersectionObserver((entries) => {
+            entries.forEach((en) => {
+                if (!en.isIntersecting) return;
+                observer.unobserve(en.target);
+                p.thumbQueue.push(Number(en.target.dataset.id));
+                pumpThumbs(remoteId);
             });
-            row.append(label, btn);
-            box.appendChild(row);
+        }, { rootMargin: "200px" }) : null;
+
+        function show(kind) {
+            p.thumbQueue = [];
+            grid.replaceChildren();
+            [...tabs.children].forEach((b) => {
+                b.style.background = b.dataset.kind === kind ? "#2563eb" : "#1f2937";
+            });
+            if (!groups[kind].length) {
+                const empty = document.createElement("p");
+                empty.style.cssText = "grid-column:1/-1; color:#94a3b8; font-size:13px;";
+                empty.textContent = "Nothing here.";
+                grid.appendChild(empty);
+                return;
+            }
+            groups[kind].forEach((f) => {
+                const tile = document.createElement("div");
+                tile.dataset.id = f.id;
+                tile.style.cssText = "aspect-ratio:1/1; background:#1f2937 center/cover no-repeat; border-radius:6px; cursor:pointer; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; color:#e5e7eb; font-size:11px; text-align:center; padding:4px; word-break:break-all;";
+                if (kind === "files") {
+                    tile.textContent = "\uD83D\uDCC4 " + f.name;
+                } else {
+                    if (kind === "videos") tile.dataset.video = "1";
+                    tile.textContent = kind === "videos" ? "\u25B6" : "";
+                    p.tiles[f.id] = tile;
+                    if (observer) observer.observe(tile); else p.thumbQueue.push(f.id);
+                    const sz = document.createElement("span");
+                    sz.textContent = formatSize(f.size);
+                    sz.style.cssText = "position:absolute; right:4px; bottom:3px; background:rgba(0,0,0,.6); border-radius:4px; padding:1px 4px; font-size:10px;";
+                    tile.appendChild(sz);
+                }
+                tile.addEventListener("click", () => sendGet(remoteId, f));
+                grid.appendChild(tile);
+            });
+            pumpThumbs(remoteId);
+        }
+
+        Object.keys(names).forEach((kind) => {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.dataset.kind = kind;
+            b.className = "secondary";
+            b.textContent = names[kind] + " (" + groups[kind].length + ")";
+            b.addEventListener("click", () => show(kind));
+            tabs.appendChild(b);
         });
+        show(groups.photos.length ? "photos" : groups.videos.length ? "videos" : "files");
     }
 
     function onChunk(remoteId, buf) {
@@ -1402,20 +1539,7 @@ loadRegisteredDevices();
         const blob = new Blob(inc.chunks, { type: inc.meta.type || "application/octet-stream" });
         const url = URL.createObjectURL(blob);
         filesMessage(remoteId, "Received " + inc.meta.name + " (" + formatSize(inc.received) + ")");
-        const box = filesBox(remoteId);
-        if (!box) return;
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = inc.meta.name;
-        a.textContent = "Save " + inc.meta.name;
-        a.style.cssText = "display:block; color:#60a5fa; margin:8px 0;";
-        box.appendChild(a);
-        if ((inc.meta.type || "").startsWith("image/")) {
-            const img = document.createElement("img");
-            img.src = url;
-            img.style.cssText = "max-width:100%; border-radius:8px; margin-top:8px;";
-            box.appendChild(img);
-        }
+        showViewer(remoteId, inc.meta, url);
     }
 
     // ---- Device information (only what a web page is allowed to read) ----
